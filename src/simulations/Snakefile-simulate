@@ -1,0 +1,20 @@
+ISOLATES = [i for i in open("~/measles_seqs/assemblies/isolates.txt").read().split('\n') if len(i) > 0]
+output_path = "~/measles_seqs/simulations/pure/100/"
+primer_path = "~/measles_seqs/primers/primer_v3_400.bed"
+ref = "~/measles_seqs/reference/reference.fasta"
+
+rule all:
+    input:
+        expand(output_path + "{isolate}", isolate=ISOLATES),
+
+rule bygul:
+    input:
+        genome="~/measles_seqs/assemblies/{isolate}/{isolate}.fna",  # can be either genome index or genome fasta
+        primer=primer_path,
+        reference=ref,
+    output:
+        directory(output_path + "{isolate}")
+    conda:
+        "bygul"
+    shell:
+        """bygul simulate-proportions {input.genome} {input.primer} {input.reference} --outdir {output} --simulator mason --readcnt 400"""

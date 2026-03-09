@@ -1,0 +1,110 @@
+ISOLATES = [i for i in open("~/measles_seqs/assemblies/isolates.txt").read().split('\n') if len(i) > 0]
+output_path = "~/measles_seqs/simulations/pure/100/"
+reference_path = "~/measles_seqs/reference/reference.fasta"
+primer_path = "~/measles_seqs/primers/primer_v3_400.bed"
+
+rule all:
+    input:
+        expand(output_path + "{isolate}/{isolate}_freyja_demix.txt", isolate=ISOLATES),
+        expand(output_path + "{isolate}/{isolate}_plot.png", isolate=ISOLATES)
+
+
+rule minimap2_sam:
+    input:
+        target=reference_path,  # can be either genome index or genome fasta
+        query1=output_path + "{isolate}/reads_1.fastq",
+        query2=output_path + "{isolate}/reads_2.fastq",
+    output:
+        output_path + "{isolate}/{isolate}.sam"
+    conda:
+        "minimap"
+    shell:
+        """minimap2 -ax sr {input.target} {input.query1} {input.query2} > {output} """
+
+rule sam2bam:
+    input:
+        output_path + "{isolate}/{isolate}.sam"
+    output:
+        output_path + "{isolate}/{isolate}.bam"
+    conda:
+        "freyja"
+    shell:
+        """samtools view -bS {input} > {output} """
+
+rule sort_bam:
+    input:
+        output_path + "{isolate}/{isolate}.bam"
+    output:
+        output_path + "{isolate}/{isolate}_sorted.bam"
+    conda:
+        "freyja"
+    shell:
+        """samtools sort -o {output} {input} """
+
+rule index_bam:
+    input:
+        output_path + "{isolate}/{isolate}_sorted.bam"
+    output:
+        output_path + "{isolate}/{isolate}_sorted.bam.bai"
+    conda:
+        "freyja"
+    shell:
+        """samtools index {input} """
+
+rule remove_adapters:
+    input:
+        bam_file=output_path + "{isolate}/{isolate}_sorted.bam",
+        primer=primer_path,
+    output:
+        output_path + "{isolate}/trimmed_{isolate}.bam"
+    conda:
+        "freyja"
+    params:
+        pfx=output_path + "{isolate}/trimmed_{isolate}"
+    shell:
+        """ivar trim -b {input.primer} -p {params.pfx} -i {input.bam_file} -q 15 -m 50 -s 4 -e"""
+
+rule sort_index:
+    input:
+        output_path + "{isolate}/trimmed_{isolate}.bam"
+    output:
+        output_path + "{isolate}/trimmed_{isolate}_sorted.bam"
+    conda:
+        "freyja"
+    shell:
+        """samtools sort -o {output} {input} && samtools index {output} """
+
+rule generate_depth:
+    input:
+        bam_file=output_path + "{isolate}/trimmed_{isolate}_sorted.bam",
+        reference=reference_path
+    output:
+        depths=output_path + "{isolate}/{isolate}_depths.tsv",
+        variants=output_path + "{isolate}/{isolate}_variants.tsv",
+    conda:
+        "freyja"
+    shell:
+        """
+        samtools mpileup -aa -A -d 600000 -Q 20 -q 0 -B -f {input.reference} {input.bam_file} | tee >(cut -f1-4 > {output.depths}) | ivar variants -p {output.variants} -q 20 -t 0.0 -r {input.reference}
+        """
+
+rule run_demix:
+    input:
+        variants=output_path + "{isolate}/{isolate}_variants.tsv",
+        depths=output_path + "{isolate}/{isolate}_depths.tsv",
+    output:
+        output_path + "{isolate}/{isolate}_freyja_demix.txt"
+    conda:
+        "freyja"
+    shell:
+        """freyja demix {input.variants} {input.depths} --output {output} --pathogen MEASLES --lineageyml lineagesMEASLES.yml"""
+rule plot:
+    input:
+        depth=output_path + "{isolate}/{isolate}_depths.tsv",  # can be either genome index or genome fasta
+        primer=primer_path,
+    output:
+        output_path + "{isolate}/{isolate}_plot.png"
+    conda:
+        "freyja"
+    shell:
+        """freyja ampliconstat --primer {input.primer} --input_depth {input.depth} --output_plot {output}"""
