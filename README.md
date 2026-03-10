@@ -6,7 +6,7 @@ Measles outbreaks have surged globally in recent years, but current surveillance
 ---
 This repository contains the following folders: 
 
-- `src`: R and Python scripts needed for all basic bioinformatic analyses
+- `src`: R and Python scripts needed for all basic bioinformatic and epidemiological analyses
 - `variants`: single nucleotide variant (SNV) frequencies for each wastewater and clinical sample
 - `depths`: coverage depth, by nucleotide position relative to Hu-1 reference
 - `tree`: Additional scripts used for phylogenetic analyses 
