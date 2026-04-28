@@ -1,7 +1,7 @@
-ISOLATES = [i for i in open("~/measles_seqs/assemblies/isolates.txt").read().split('\n') if len(i) > 0]
-output_path = "~/measles_seqs/simulations/pure/100/"
-reference_path = "~/measles_seqs/reference/reference.fasta"
-primer_path = "~/measles_seqs/primers/primer_v3_400.bed"
+ISOLATES = [i for i in open("isolates.txt").read().split('\n') if len(i) > 0]
+output_path = "simulations/combinations/200/"
+reference_path = "reference.fasta"
+primer_path = "primer_v3_400.bed"
 
 rule all:
     input:

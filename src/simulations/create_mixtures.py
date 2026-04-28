@@ -6,14 +6,14 @@ from tqdm import tqdm
 
 # Load isolate names from file
 ISOLATES = [
-    i for i in open("~/measles_seqs/rep_isolates.txt").read().split('\n') if i
+    i for i in open("rep_isolates.txt").read().split('\n') if i
 ]
 # Define read counts and proportions
 readcnts = [200]
 proportions = [(0,1),(0.1,0.9),(0.2, 0.8),(0.3,0.7),(0.4,0.6),(0.5, 0.5)]
 # Primer file
-primer_bed_file = "~/measles_seqs/primers/primer_v3_400.bed"
-ref = "~/measles_seqs/reference/reference.fasta"
+primer_bed_file = "primer_v3_400.bed"
+ref = "reference.fasta"
 
 # Generate isolate combinations
 isolate_combinations = list(itertools.combinations(ISOLATES, 2))
@@ -22,10 +22,10 @@ isolate_combinations = list(itertools.combinations(ISOLATES, 2))
 def run_simulation(params):
     readcnt, isolate_combination, proportion = params
     proportion1, proportion2 = proportion
-    file1_path = f"~/measles_seqs/assemblies/{isolate_combination[0]}/{isolate_combination[0]}.fna"
-    file2_path = f"~/measles_seqs/assemblies/{isolate_combination[1]}/{isolate_combination[1]}.fna"
+    file1_path = f"assemblies/{isolate_combination[0]}/{isolate_combination[0]}.fna"
+    file2_path = f"assemblies/{isolate_combination[1]}/{isolate_combination[1]}.fna"
     output_path = (
-        f"~/measles_seqs/simulations/combinations/{readcnt}/"
+        f"simulations/combinations/{readcnt}/"
         f"{isolate_combination[0]}_{proportion1}_{isolate_combination[1]}_{proportion2}"
     )
     reads_file_path = os.path.join(output_path, "reads_1.fastq")
