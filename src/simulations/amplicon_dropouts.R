@@ -17,8 +17,7 @@ df_joined <- df_joined %>%
       TRUE ~ "full sequence"
     )
   )
-lineages <- fread("Downloads/nextclade.tsv")
-lineages <- lineages %>% separate(seqName, into = "V1", sep = " ")
+lineages <- fread("nextclade_sequence_lineages.tsv")
 
 dropout_summary <-
   df_joined%>%
@@ -32,20 +31,34 @@ dropout_summary <-
   summarise( n_success = sum(successful), 
              n_failure = sum(!successful),
              total = n(), dropout_ratio = n_failure / total, .groups = "drop" )
-dropout_summary %>%
-  filter(clade != "unassigned")%>%
+
+p<-dropout_summary %>%
+  filter(clade != "unassigned") %>%
   mutate(
     number = factor(
       number,
       levels = sort(unique(as.numeric(number)))
     )
   ) %>%
+  complete(clade, number, fill = list(dropout_ratio = NA)) %>%
   ggplot(aes(x = clade, y = number, fill = dropout_ratio)) +
   geom_tile() +
   scale_fill_gradient(
     low = "white",
     high = "darkblue",
+    na.value = "darkgrey",
     name = "Dropout rate"
   ) +
   labs(x = "Clade", y = "Amplicon") +
-  theme_bw()
+  theme_light()+
+  theme(
+    axis.text.y = element_text(size = 8)
+  )
+ggsave(
+  "dropout_heatmap.pdf",
+  plot = p,
+  width = 5,
+  height = 5,
+  units = "in"
+)
+
