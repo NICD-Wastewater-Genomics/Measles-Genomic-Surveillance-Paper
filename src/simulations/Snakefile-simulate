@@ -1,7 +1,7 @@
-ISOLATES = [i for i in open("~/measles_seqs/assemblies/isolates.txt").read().split('\n') if len(i) > 0]
-output_path = "~/measles_seqs/simulations/pure/100/"
-primer_path = "~/measles_seqs/primers/primer_v3_400.bed"
-ref = "~/measles_seqs/reference/reference.fasta"
+ISOLATES = [i for i in open("assemblies/isolates.txt").read().split('\n') if len(i) > 0]
+output_path = "simulations/pure/100/"
+primer_path = "primer_v3_400.bed"
+ref = "reference.fasta"
 
 rule all:
     input:
@@ -9,7 +9,7 @@ rule all:
 
 rule bygul:
     input:
-        genome="~/measles_seqs/assemblies/{isolate}/{isolate}.fna",  # can be either genome index or genome fasta
+        genome="assemblies/{isolate}/{isolate}.fna",  # can be either genome index or genome fasta
         primer=primer_path,
         reference=ref,
     output:
