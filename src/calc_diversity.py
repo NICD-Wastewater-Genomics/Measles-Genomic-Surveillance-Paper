@@ -69,7 +69,7 @@ agg_df2['coverage'] = agg_df2['coverage']/100.
 agg_df2['Concentration method'] = [meta_ww.loc[id,'Concentration method'] if id in meta_ww.index else None for j,id in enumerate(agg_df2['ID'])]
 
 
-# build SFig 5b
+# build SFig 7c
 fig,ax = plt.subplots(figsize = (2,4))
 sns.swarmplot(x='region',y='numVars',data=agg_df2,ax=ax,color='black',clip_on=False,size=3.)
 sns.boxplot(x='region',y='numVars',data=agg_df2,ax=ax,color='lightgrey',fliersize=0,medianprops=dict(linewidth=2),zorder=-10)
@@ -84,7 +84,7 @@ plt.close('all')
 medians = agg_df2.groupby('region')['numVars'].median()
 print("non-dominant medians: ",medians)
 
-# build SFig 5a
+# build SFig 7b
 fig,ax = plt.subplots(figsize = (2,4))
 sns.swarmplot(x='region',y='numVarsDominant',data=agg_df2,ax=ax,color='black',clip_on=False,size=3.)
 sns.boxplot(x='region',y='numVarsDominant',data=agg_df2,ax=ax,color='lightgrey',fliersize=0,medianprops=dict(linewidth=2),zorder=-10)
