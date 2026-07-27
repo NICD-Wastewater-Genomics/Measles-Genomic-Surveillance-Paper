@@ -56,107 +56,54 @@ agg_df2['Concentration method'] = [meta_ww.loc[id,'Concentration method'] if id 
 agg_df_comparison = agg_df2.copy()
 
 ## Generate SFig 3B
-fig,ax = plt.subplots(figsize=(3,4))
+agg_df2 = agg_df2[(agg_df2['Concentration method']=='Dynabeads')]# | (agg_df2['Concentration method']=='Ceres+Dynabeads')]
+agg_df2 = agg_df2.dropna()
+for cut in [0.05,0.10,0.25,0.5,0.75]:
+    passing = agg_df2[agg_df2['coverage']>cut]
+    print(f'over threshold{cut}:', passing.shape[0], ' of ', agg_df2.shape[0])
+
+
+xlim=[-0.5,3.1]
+fig, ax = plt.subplots(figsize=(3, 4))
 ax.set_xlim(xlim)
-ax.scatter(agg_df2['log concentration'], agg_df2["coverage"],clip_on=False,color=plt.cm.Accent(1))
-import statsmodels.api as sm
-# build design matrix 
-X = sm.add_constant(agg_df2['log concentration'])
-y = agg_df2["coverage"].values
+ax.set_ylim([0, 1])
 
-# perform initial fit
-model = sm.GLM(y, X, family=sm.families.Binomial())
-res = model.fit()
+# Define bins in log10 space
+bin_edges = [-np.inf, 0, 1, np.inf]
+log_conc = agg_df2['log concentration'].values
+coverage = agg_df2['coverage'].values
 
-# iterative robust reweighting 
-weights = np.ones_like(y, dtype=float)
+# Add alternating bin shading first (so it sits behind points)
+for i, (lo, hi) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
+    x_lo = max(lo, xlim[0]) if lo != -np.inf else xlim[0]
+    x_hi = min(hi, xlim[1]) if hi != np.inf else xlim[1]
+    if i % 2 == 0:
+        ax.axvspan(x_lo, x_hi, color='gray', alpha=0.08, zorder=0)
 
-for _ in range(10):
-    res_w = sm.GLM(
-        y, X,
-        family=sm.families.Binomial(),
-        var_weights=weights
-    ).fit()
+ax.scatter(agg_df2['log concentration'], agg_df2["coverage"], clip_on=False, color=plt.cm.Accent(1), zorder=2)
 
-    # use pearson residuals for reweighting
-    p_hat = res_w.predict(X)
-    resid = (y - p_hat) / np.sqrt(p_hat * (1 - p_hat) + 1e-8)
-    new_weights = 1.0 / (1.0 + (resid ) ** 2)
-    new_weights *= len(new_weights) / new_weights.sum()
+for i, (lo, hi) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
+    mask = (log_conc > lo) & (log_conc <= hi)
+    if mask.sum() == 0:
+        continue
+    median_val = np.median(coverage[mask])
+    mad_val = np.median(np.abs(coverage[mask] - median_val))
 
-    # check for convergence
-    if np.max(np.abs(new_weights - weights)) < 1e-3:
-        weights = new_weights
-        break
+    x_lo = max(lo, xlim[0]) if lo != -np.inf else xlim[0]
+    x_hi = min(hi, xlim[1]) if hi != np.inf else xlim[1]
+    x_mid = (x_lo + x_hi) / 2
 
-    weights = new_weights
+    ax.plot([x_lo, x_hi], [median_val, median_val], color='black', linewidth=1.5, zorder=3)
+    ax.errorbar(x_mid, median_val, yerr=mad_val, fmt='none', color='black', capsize=3, linewidth=1.2, zorder=3)
 
-x_grid = np.linspace(
-    xlim[0],
-    xlim[1],
-    200
-)
-Xg = sm.add_constant(x_grid)
-p = res_w.predict(Xg)
-
-ax.plot(x_grid, p, linewidth=2, color=plt.cm.Accent(1))
-B = 1000          
-n_iter = 10
-rng = np.random.default_rng(0)
-
-X_mat = X.values if hasattr(X, "values") else np.asarray(X) 
-y_vec = y if isinstance(y, np.ndarray) else np.asarray(y)
-
-Xg_mat = Xg.values if hasattr(Xg, "values") else np.asarray(Xg)
-
-p_boot = np.empty((B, len(x_grid)), dtype=float)
-
-n = len(y_vec)
-for b in range(B):
-    idx = rng.integers(0, n, size=n)  # bootstrap indices
-    Xb = X_mat[idx, :]
-    yb = y_vec[idx]
-
-    # perform initial fit
-    weights_b = np.ones_like(yb, dtype=float)
-    res_w_b = sm.GLM(yb, Xb, family=sm.families.Binomial()).fit()
-
-    # robust reweighting
-    for _ in range(n_iter):
-        res_w_b = sm.GLM(
-            yb, Xb,
-            family=sm.families.Binomial(),
-            var_weights=weights_b
-        ).fit()
-
-        p_hat_b = res_w_b.predict(Xb)
-        resid_b = (yb - p_hat_b) / np.sqrt(p_hat_b * (1 - p_hat_b) + 1e-8)
-
-        new_w_b = 1.0 / (1.0 + (resid_b ) ** 2)
-        new_w_b *= len(new_w_b) / new_w_b.sum()
-
-        if np.max(np.abs(new_w_b - weights_b)) < 1e-3:
-            weights_b = new_w_b
-            break
-        weights_b = new_w_b
-
-    p_boot[b, :] = res_w_b.predict(Xg_mat)
-
-p_lo = np.percentile(p_boot, 2.5, axis=0)
-p_hi = np.percentile(p_boot, 97.5, axis=0)
-
-ax.fill_between(x_grid, p_lo, p_hi, alpha=0.2, linewidth=0,color=plt.cm.Accent(1))
-ax.set_ylim([0,1])
 ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 ax.set_xlabel('Log10(Measles Concentration (copies/uL))')
 ax.set_ylabel('Fraction genome coverage')
-print('labels',ax.get_xticklabels())
 log_labels = [f'$10^{label.get_text()}$' for label in ax.get_xticklabels()]
 ax.set_xticklabels(log_labels)
 ax.spines[['right', 'top']].set_visible(False)
-plt.savefig('../figures/coverage_vs_concentration.pdf',bbox_inches='tight',transparent=True)
+plt.savefig('../figures/coverage_vs_concentration.pdf', bbox_inches='tight', transparent=True)
 plt.close()
-
 
 # build SFig 1B
 fig,ax = plt.subplots(figsize=(3.5,4))
