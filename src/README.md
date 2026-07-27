@@ -23,9 +23,16 @@ R and Python scripts used for bioinformatic processing and epidemiological/figur
 
 ### `simulations/`
 Scripts and inputs for read-simulation benchmarking of the Freyja mixture/demixing workflow:
+#### Amplicon dropout analysis
+- `extract_seqs.py`: Pulling actualt sequences in the primer regions from an alignment MSA file
+- `pull_fasta.py`: pulls the fasta sequences from NCBI
 - `create_mixtures.py`: Builds simulated mixtures of reference isolates
-- `Snakefile-simulate`: Simulates amplicon reads per isolate (via `bygul`)
+- `amplicon_dropouts.R`: Create dropout heatmaps
+- `check_primers.sh`: Amplicon dropout analysis full pipeline
+#### Mixture analysis
+- `Snakefile-simulate`: Simulates amplicon reads per isolate (via `bygul`) for pure samples
 - `snakefile-freyja`: Aligns simulated reads and runs Freyja demixing
 - `summarise_freyja_mixtures.R`: Aggregates and summarizes Freyja demixing results across simulated mixtures
-- `aggregated_result.tsv`, `lineages.tsv`, `rep_isolates.txt`, `reference.fasta`, `primer_v3_400.bed`: supporting inputs
+#### Input files
+- `aggregated_result.tsv`, `lineages.tsv`, `nextclade_sequence_lineages.tsv`,`rep_isolates.txt`, `reference.fasta`, `primer_v3_400.bed`: supporting inputs
 - `assemblies/`: Reference isolate assemblies used to build simulated mixtures
