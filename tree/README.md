@@ -26,3 +26,9 @@ Scripts used to build and analyze the whole-genome phylogenetic trees (backgroun
 ### Supporting data
 - `measles_bg_metadata_cleaned.csv`: Cleaned metadata for background sequences
 - `measles_tree_bg.pdf`: Rendered background tree figure
+
+### `B3/` and `D8/`
+Per-genotype whole-genome alignments and trees produced by `subtrees_withprivate.sh`, including private (South African) sequences:
+- `<GT>_wg_all_dated_aligned_withprivate.fasta`: Dated whole-genome alignment
+- `<GT>_wg_all_dated_aligned_withprivate.fasta.treefile`: IQ-TREE maximum-likelihood tree
+- `timetree.nexus`: Time-resolved whole-genome tree
