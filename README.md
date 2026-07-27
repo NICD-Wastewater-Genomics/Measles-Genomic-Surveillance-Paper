@@ -11,6 +11,8 @@ This repository contains the following folders:
 - `depths`: coverage depth, by nucleotide position relative to Hu-1 reference
 - `tree`: Additional scripts used for phylogenetic analyses 
 - `n450_tree`: Additional scripts used for N450-only phylogenetic analyses
+- `assets`: files used for bioinformatic processing (e.g. bed files), Freyja, and mapping analyses
+- `ref_alignments`: Reference-based alignments used for visualization of local virus diversity
 
 The `agg_demixed.tsv` file contains aggregated Freyja outputs for sequenced wastewater samples. 
 
