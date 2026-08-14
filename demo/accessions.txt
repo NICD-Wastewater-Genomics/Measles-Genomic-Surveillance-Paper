@@ -1,0 +1,7 @@
+# NCBI SRA run accessions used by this demo.
+# All three are paired-end Illumina amplicon WGS runs of wastewater samples
+# from BioProject PRJNA1377662 (see ../data/README.md), chosen for their
+# small file size (a few MB each) so the demo runs quickly.
+SRR37574359
+SRR37574380
+SRR37574398
