@@ -31,7 +31,8 @@ The easiest way to get all of these is via the included conda environment file:
 conda env create -f environment.yml
 conda activate measles-demo
 ```
-
+The environment solving process usually completes within 1-2 minutes, and the download takes ~30 seconds provided a reliable internet connection. 
+ 
 ### Usage
 From this directory:
 
