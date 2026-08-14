@@ -23,7 +23,7 @@ Three small paired-end amplicon WGS runs from wastewater samples in BioProject [
 - `minimap2`
 - `samtools`
 - `ivar`
-- `freyja` >= 2.0 — earlier releases don't support the `--pathogen` and `--autoadapt` options used here. See the [Freyja repo](https://github.com/andersen-lab/Freyja) for installation instructions and details on the demixing method.
+- `freyja` >= 2.0 — earlier releases don't support the `--pathogen` and `--autoadapt` options used here. See the [Freyja repo](https://github.com/andersen-lab/Freyja) for installation instructions, compatible Python versions, and  details on the demixing method. Freyja has been widely validated on Linux and Mac operating systems. 
 
 The easiest way to get all of these is via the included conda environment file:
 
@@ -32,7 +32,7 @@ conda env create -f environment.yml
 conda activate measles-demo
 ```
 The environment solving process usually completes within 1-2 minutes, and the download takes ~30 seconds provided a reliable internet connection. 
- 
+
 ### Usage
 From this directory:
 
