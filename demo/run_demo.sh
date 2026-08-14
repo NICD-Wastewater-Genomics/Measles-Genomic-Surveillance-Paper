@@ -73,3 +73,19 @@ echo "Aggregating demixed outputs"
 freyja aggregate outputs/ --output agg_demixed.tsv --ext tsv
 
 echo "Done. See demo/agg_demixed.tsv for combined lineage abundance estimates."
+
+### Next steps (not run by this demo).
+
+### 1. Pull background sequences for phylogenetic context, the same way
+### ../tree/background_tree.sh retrieves genotype-diverse measles genomes
+### from GenBank via ../tree/fetch_sequences.py:
+#
+# python ../tree/fetch_sequences.py --taxid 11234 --min_length_fraction 0.8 \
+#     --min_gatc_fraction 0.8 --output_prefix measles_bg --human_only
+
+### 2. Combine the demo consensus sequences with those background sequences
+### and align them with MAFFT, the same way whole-genome consensus sequences
+### are aligned ahead of phylogenetic inference in ../tree/subtrees_withprivate.sh:
+#
+# cat sequences/*.fa measles_bg.fasta > demo_consensus_plus_bg.fasta
+# mafft --maxiterate 1000 --thread 4 demo_consensus_plus_bg.fasta > demo_consensus_aligned.fasta

@@ -13,17 +13,17 @@ For each sample:
 5. Call variants and sequencing depth with `freyja variants`
 6. Estimate lineage/genotype relative abundance with `freyja demix`
 
-Outputs from all samples are then combined with `freyja aggregate` into `agg_demixed.tsv`.
+Outputs from all samples are then combined using `freyja aggregate` into `agg_demixed.tsv`.
 
 ### Samples
-Three small paired-end amplicon WGS runs from wastewater samples in BioProject [PRJNA1377662](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1377662) (see `accessions.txt`): `SRR37574359`, `SRR37574380`, `SRR37574400`. Each is only a few MB, so the whole demo should run in a few minutes.
+Three small paired-end amplicon WGS runs from wastewater samples in BioProject [PRJNA1377662](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1377662) (see `accessions.txt`): `SRR37574359`, `SRR37574380`, `SRR37574398`. Each is only a few MB, so the whole demo should run in a few minutes.
 
 ### Requirements
 - `sra-tools` (`prefetch`, `fasterq-dump`)
 - `minimap2`
 - `samtools`
 - `ivar`
-- `freyja` >= 2.0 — earlier releases don't support the `--pathogen` and `--autoadapt` options used here. See the [Freyja repo](https://github.com/andersen-lab/Freyja) for installation instructions and details on the demixing method.
+- `freyja` >= 2.0 — earlier releases don't support the `--pathogen` and `--autoadapt` options used here. See the [Freyja repo](https://github.com/andersen-lab/Freyja) for installation instructions, compatible Python versions, and  details on the demixing method. Freyja has been widely validated on Linux and Mac operating systems. 
 
 The easiest way to get all of these is via the included conda environment file:
 
@@ -32,7 +32,7 @@ conda env create -f environment.yml
 conda activate measles-demo
 ```
 The environment solving process usually completes within 1-2 minutes, and the download takes ~30 seconds provided a reliable internet connection. 
- 
+
 ### Usage
 From this directory:
 
@@ -54,3 +54,20 @@ demo/
 ├── outputs/    # per-sample demixed lineage abundances
 └── agg_demixed.tsv   # aggregated demixing results across all samples
 ```
+
+### Next steps (although not run by this demo)
+1. Pull background sequences for phylogenetic context. `../tree/fetch_sequences.py` retrieves genotype-diverse measles genomes from GenBank by taxid, filtering by length/base-composition and (optionally) human host, as used in `../tree/background_tree.sh`:
+
+   ```bash
+   python ../tree/fetch_sequences.py --taxid 11234 --min_length_fraction 0.8 \
+       --min_gatc_fraction 0.8 --output_prefix measles_bg --human_only
+   ```
+
+2. Combine the demo consensus sequences with those background sequences and align them with `mafft`, the same way whole-genome consensus sequences are aligned ahead of phylogenetic inference in `../tree/subtrees_withprivate.sh`:
+
+   ```bash
+   cat sequences/*.fa measles_bg.fasta > demo_consensus_plus_bg.fasta
+   mafft --maxiterate 1000 --thread 4 demo_consensus_plus_bg.fasta > demo_consensus_aligned.fasta
+   ```
+
+This aligned FASTA is the starting point for phylogenetic tree inference (e.g. with `iqtree`/`treetime`), as done for the full dataset in `../tree`.
