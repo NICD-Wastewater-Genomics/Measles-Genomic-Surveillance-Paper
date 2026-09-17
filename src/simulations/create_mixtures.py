@@ -10,7 +10,14 @@ ISOLATES = [
 ]
 # Define read counts and proportions
 readcnts = [200]
-proportions = [(0,1),(0.1,0.9),(0.2, 0.8),(0.3,0.7),(0.4,0.6),(0.5, 0.5)]
+proportions = proportions = [
+    (0, 1), (1, 0),
+    (0.1, 0.9), (0.9, 0.1),
+    (0.2, 0.8), (0.8, 0.2),
+    (0.3, 0.7), (0.7, 0.3),
+    (0.4, 0.6), (0.6, 0.4),
+    (0.5, 0.5)
+]
 # Primer file
 primer_bed_file = "primer_v3_400.bed"
 ref = "reference.fasta"
