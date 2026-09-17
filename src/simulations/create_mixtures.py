@@ -10,7 +10,14 @@ ISOLATES = [
 ]
 # Define read counts and proportions
 readcnts = [200]
-proportions = [(0,1),(0.1,0.9),(0.2, 0.8),(0.3,0.7),(0.4,0.6),(0.5, 0.5)]
+proportions = proportions = [
+    (0, 1), (1, 0),
+    (0.1, 0.9), (0.9, 0.1),
+    (0.2, 0.8), (0.8, 0.2),
+    (0.3, 0.7), (0.7, 0.3),
+    (0.4, 0.6), (0.6, 0.4),
+    (0.5, 0.5)
+]
 # Primer file
 primer_bed_file = "primer_v3_400.bed"
 ref = "reference.fasta"
@@ -37,13 +44,12 @@ def run_simulation(params):
     # Command to run the simulation
     command = [
         "bygul", "simulate-proportions",
-        f"{file1_path},{file2_path}",
-        primer_bed_file,
-        ref,
+        "--genomes", f"{file1_path},{file2_path}",
+        "--primers", primer_bed_file,
         "--proportions", f"{proportion1},{proportion2}",
         "--readcnt", str(readcnt),
         "--outdir", output_path,
-        "--simulator", "mason"
+        "--simulator", "art"
     ]
     try:
         subprocess.run(command, check=True)
