@@ -11,87 +11,60 @@ results<-as.data.frame(sapply(results, function(x) trimws(gsub("\\s+", " ", x)))
 # read lineages file created using nextclade
 lineages <- fread("lineages.tsv",header = TRUE)
 # df operations
-results_comb_names <- results %>% separate(lineages, into = c("obs_lin1","obs_lin2"), sep = " ")
-results_comb_names <- results_comb_names %>% 
-  separate(abundances, into = c("obs_abun1","obs_abun2"), sep = " ")
-results_comb_names <- results_comb_names %>% 
-  separate(X, into = as.character(1:6),sep="_")
-results_comb_names$isolate1 <- paste(results_comb_names$`1`,results_comb_names$`2`,sep="_")
-results_comb_names$isolate2 <- paste(results_comb_names$`4`,results_comb_names$`5`,sep="_")
-results_comb_names<- results_comb_names[,-c(1,2,4,5,7,12,13)]
-colnames(results_comb_names)[1:2] <- c("exp_abun1","exp_abun2")
-results_comb_names <- results_comb_names %>%
-  mutate(obs_abun1 = replace_na(as.numeric(obs_abun1), 0),
-         obs_abun2 = replace_na(as.numeric(obs_abun2), 0),
-         real_exp_abun1 = pmax(exp_abun1, exp_abun2, na.rm = TRUE),
-         real_exp_abun2 = pmin(exp_abun1, exp_abun2, na.rm = TRUE))
-
-results_comb_names <- results_comb_names %>%
-  mutate(res1 = abs(as.numeric(obs_abun1) - as.numeric(real_exp_abun1)))
-results_comb_names <- results_comb_names %>%
-  mutate(res2 = abs(as.numeric(obs_abun2) - as.numeric(real_exp_abun2)))
-
-results_comb_names <- lineages %>% select(seqName,clade)%>%
-  inner_join(results_comb_names, by =c("seqName" ="isolate1")) 
-colnames(results_comb_names)[1:2] <- c("isolate1","exp_lin1")
-
-results_comb_names <- lineages %>% select(seqName,clade)%>%
-  inner_join(results_comb_names, by =c("seqName" ="isolate2")) 
-colnames(results_comb_names)[1:2] <- c("isolate2","exp_lin2")
-
-results_comb_names <- results_comb_names %>%
-  separate(obs_lin1, into= c("na","obs_lin1"), sep = "-")%>%
-  separate(obs_lin2, into= c("na","obs_lin2"), sep = "-")
-results_comb_names <- results_comb_names %>% select(-c(exp_abun1,exp_abun2,na))
-colnames(results_comb_names)[9:10] <- c("exp_abun1","exp_abun2")
-results_comb_names <- results_comb_names %>% select(isolate1,isolate2,exp_lin1,
-                                                    obs_lin1,exp_abun1,obs_abun1,
-                                                    res1,exp_lin2,obs_lin2,
-                                                    exp_abun2,obs_abun2,res2)
-results_comb_names <- results_comb_names %>%
+results_comb_names <- results %>%
+  separate(X, into = as.character(1:6), sep = "_") %>%
   mutate(
-    sublineage_true1 = if_else(
-      (coalesce(exp_lin1, "NA") == coalesce(obs_lin1, "NA") | 
-         coalesce(exp_lin1, "NA") == coalesce(obs_lin2, "NA")),
-      1,
-      0
+    isolate1 = paste(`1`, `2`, sep = "_"),
+    isolate2 = paste(`4`, `5`, sep = "_"),
+    exp_abun1 = as.numeric(`3`),
+    exp_abun2 = as.numeric(`6`)
+  )
+
+# 2. Join expected lineages from nextclade
+results_comb_names <- results_comb_names %>%
+  left_join(lineages %>% select(seqName, exp_lin1 = clade), by = c("isolate1" = "seqName")) %>%
+  left_join(lineages %>% select(seqName, exp_lin2 = clade), by = c("isolate2" = "seqName"))
+
+# 3. Clean up Freyja observed lineages & abundances into long format for matching
+obs_long <- results_comb_names %>%
+  select(isolate1, isolate2, exp_lin1, exp_lin2, exp_abun1, exp_abun2, lineages, abundances) %>%
+  separate(lineages, into = c("obs_lin_a", "obs_lin_b"), sep = " ", fill = "right") %>%
+  separate(abundances, into = c("obs_abun_a", "obs_abun_b"), sep = " ", fill = "right") %>%
+  mutate(
+    obs_lin_a = str_remove(obs_lin_a, ".*-"),
+    obs_lin_b = str_remove(obs_lin_b, ".*-"),
+    obs_abun_a = replace_na(as.numeric(obs_abun_a), 0),
+    obs_abun_b = replace_na(as.numeric(obs_abun_b), 0)
+  )
+
+# 4. Map observed values to expected lineage 1 & 2 explicitly
+df_mapped <- obs_long %>%
+  mutate(
+    # Isolate 1 matching
+    obs_abun1 = case_when(
+      exp_lin1 == obs_lin_a ~ obs_abun_a,
+      exp_lin1 == obs_lin_b ~ obs_abun_b,
+      TRUE ~ 0
     ),
-    sublineage_true2 = if_else(
-      (coalesce(exp_lin2, "NA") == coalesce(obs_lin1, "NA") | 
-         coalesce(exp_lin2, "NA") == coalesce(obs_lin2, "NA")),
-      1,
-      0
+    # Isolate 2 matching
+    obs_abun2 = case_when(
+      exp_lin2 == obs_lin_a ~ obs_abun_a,
+      exp_lin2 == obs_lin_b ~ obs_abun_b,
+      TRUE ~ 0
     )
   )
 
-results_comb_names <- results_comb_names %>%
-  mutate(
-    obs_abun1_real = if_else(sublineage_true1 == "1", as.character(obs_abun1), "0"),
-    obs_abun2_real = if_else(sublineage_true2 == "1", as.character(obs_abun2), "0"),
-    obs_abun1_real = case_when(sublineage_true1 != sublineage_true2 ~ as.character(pmax(obs_abun1,obs_abun2)),
-                               sublineage_true2 == sublineage_true1 ~ as.character(obs_abun1)
-    ),
-    obs_abun2_real = case_when(sublineage_true1 != sublineage_true2 ~ as.character(pmin(obs_abun1,obs_abun2)),
-                               sublineage_true2 == sublineage_true1 ~ as.character(obs_abun2)
-    ),
-  )
-
-results_comb_names %>% write_csv("Downloads/tb-mixed-simulations.csv")
-# combine expected observed values
-res1 <- results_comb_names %>% select(exp_abun1,obs_abun1_real,exp_lin1)
-res2 <- results_comb_names %>% select(exp_abun2,obs_abun2_real,exp_lin2)
-colnames(res1) <- c("exp","obs","lineage")
-colnames(res2)<- c("exp","obs","lineage")
-
-df_all <- rbind(res1,res2)
-df_all <- df_all %>% mutate(exp = as.numeric(exp),
-                            obs=as.numeric(obs))
+# 5. Build final plotting data frame across full 0.0 - 1.0 range
+df_all <- bind_rows(
+  df_mapped %>% select(exp = exp_abun1, obs = obs_abun1, lineage = exp_lin1),
+  df_mapped %>% select(exp = exp_abun2, obs = obs_abun2, lineage = exp_lin2)
+)
 # calculate R^2
 R2 <- 1 - sum((df_all$obs - df_all$exp)^2) / sum((df_all$obs - mean(df_all$obs))^2)
 # Create the ggplot with combined, detailed color and size legend
 plot <- df_all %>%
   filter(exp >0) %>% ggplot() + 
-  geom_point(aes(exp, obs, color = lineage),alpha = 0.7, size = 3) +  # Outline color based on depth
+  geom_point(aes(exp, obs, color = lineage),alpha = 0.4, size = 3) +  # Outline color based on depth
   geom_abline(intercept = 0, slope = 1, color = "black", linetype = "dashed") +
   theme_classic() +
   theme(
@@ -116,5 +89,5 @@ plot <- df_all %>%
   ylab("Observed abundance")
 
 plot
-ggsave("exp-obs-plot.png", plot = plot, device = "pdf", width = 10, height = 10)
+ggsave("exp-obs-plot.png", plot = plot, device = "png", width = 10, height = 10)
 
