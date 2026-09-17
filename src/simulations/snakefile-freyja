@@ -97,7 +97,7 @@ rule run_demix:
     conda:
         "freyja"
     shell:
-        """freyja demix {input.variants} {input.depths} --output {output} --pathogen MEASLES --lineageyml lineagesMEASLES.yml"""
+        """freyja demix {input.variants} {input.depths} --output {output} --pathogen MEASLESgenome --lineageyml ../../assets/lineagesMEASLES.yml"""
 rule plot:
     input:
         depth=output_path + "{isolate}/{isolate}_depths.tsv",  # can be either genome index or genome fasta
