@@ -15,7 +15,7 @@ Scripts used to build and analyze the whole-genome phylogenetic trees (backgroun
 - `get_key_mutations.py`: Extracts key mutations from mutation-annotated trees
 
 ### Plotting and clade extraction
-- `plot_subtrees_withprivate.py`: Plots whole-genome subtrees with private/South African sequences highlighted, including Mantel test comparisons between distance matrices
+- `plot_subtrees_withprivate.py`: Plots whole-genome subtrees with private/South African sequences highlighted, including Mantel test comparisons between distance matrices (Fig. 4, ED Fig 8)
 - `tree_plot_and_clade_extract.py`: Extracts genotypes for background sequences not already present in metadata
 
 ### N450 vs. whole-genome comparisons

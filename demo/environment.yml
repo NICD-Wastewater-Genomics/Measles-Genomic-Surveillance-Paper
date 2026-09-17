@@ -1,0 +1,10 @@
+name: measles-demo
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - sra-tools
+  - minimap2
+  - samtools
+  - ivar
+  - freyja>=2.0
