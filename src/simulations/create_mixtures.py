@@ -44,13 +44,12 @@ def run_simulation(params):
     # Command to run the simulation
     command = [
         "bygul", "simulate-proportions",
-        f"{file1_path},{file2_path}",
-        primer_bed_file,
-        ref,
+        "--genomes", f"{file1_path},{file2_path}",
+        "--primers", primer_bed_file,
         "--proportions", f"{proportion1},{proportion2}",
         "--readcnt", str(readcnt),
         "--outdir", output_path,
-        "--simulator", "mason"
+        "--simulator", "art"
     ]
     try:
         subprocess.run(command, check=True)
