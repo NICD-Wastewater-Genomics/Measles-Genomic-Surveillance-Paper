@@ -16,6 +16,7 @@ R and Python scripts used for bioinformatic processing and epidemiological/figur
 
 - `calc_diversity.py`: Within-sample diversity calculations (ED Fig 7b,c)
 - `highlight_sa_snps.py`: Highlights South African-specific SNPs from VCF output (ED Figs 7a, 7d)
+- `snp_prevalence.py`: Reports how commonly given SNPs (e.g. `A746G`, `T3348C`) are observed across the sequences in a `snp-sites` VCF, overall and by region/sample type/year/country
 
 
 - `clincal_genotype_counts.R`: Sequencing outcomes and genotype counts (D8/B3) from clinical data (Fig 2a)

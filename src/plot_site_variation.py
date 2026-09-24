@@ -1,6 +1,12 @@
 import matplotlib.pyplot as plt
 from BCBio import GFF
-# generate ED Fig 9
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
+import matplotlib
+import numpy as np
+import seaborn as sns
+
 # read in info from the ref gff file
 gff_file = "../assets/measles_ref.gff"
 genes = []
@@ -13,13 +19,6 @@ with open(gff_file) as handle:
                 end = int(feature.location.end)
                 genes.append((name, start, end))
 
-
-import pandas as pd
-import os
-import matplotlib.pyplot as plt
-import matplotlib
-import numpy as np
-import seaborn as sns
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -102,12 +101,12 @@ def iqr(x):
 for st in ['B3','D8']:
     df_vars = df_vars_.copy()
     df_vars = df_vars[df_vars['stype']==st]
+    asdf
     df_vars = df_vars[(df_vars['ALT_FREQ']>0.1) & (df_vars['ALT_FREQ']<0.9)]
     df_vars = df_vars.groupby(['POS','REF','ALT'])['ALT_FREQ'].agg(median='median',iqr=iqr,count='count').reset_index()
     df_vars['q25'] = df_vars['iqr'].apply(lambda x:x[0])
     df_vars['q75'] = df_vars['iqr'].apply(lambda x:x[1])
     df_vars = df_vars[df_vars['count']>1]
-    # df_vars = df_vars[(df_vars['median']>0.1) & (df_vars['median']<0.9)]
     df_vars['mutName'] = df_vars['REF'] + df_vars['POS'].astype(str) + df_vars['ALT']
     # check which lineage each belongs to!
     df_vars['coreB3'] = [True if mut in b3muts else False for mut in df_vars['mutName']]
@@ -127,7 +126,7 @@ for st in ['B3','D8']:
     box_height = 0.1   # height of gene boxes
     gene_track_top = box_height   # top of boxes = baseline for bars
 
-    # --- Plot gene boxes (flush with x-axis) ---
+    # Plot gene boxes
     for name, start, end in genes:
         ax.add_patch(plt.Rectangle(
             (start, 0),               # bottom-left corner
@@ -146,7 +145,7 @@ for st in ['B3','D8']:
             clip_on=True                     # ensure text stays within axes
         )
     
-    # --- Plot markers (centered at ALT_FREQ values) ---
+    # Plot markers (centered at ALT_FREQ values)
     ax.scatter(
         df_vars["POS"],
         gene_track_top + df_vars["median"],  # vertically position at ALT_FREQ above the gene track
@@ -181,7 +180,7 @@ for st in ['B3','D8']:
         handletextpad=0.1,
         loc='upper left',
     )
-    # legend.get_title().set_color('grey')
+
     legend.get_title().set_fontweight('bold')
 
     new_lookup = {colors_list[0]:'Known B3', colors_list[1]:'Known D8','cornflowerblue':'SA-specific'}
@@ -217,6 +216,8 @@ for st in ['B3','D8']:
     # Keep bottom spine at the bottom of the gene boxes
     ax.spines["bottom"].set_position(("data", 0))
     ax.spines["left"].set_bounds(box_height, ax.get_ylim()[1])
+
+
 
     plt.tight_layout()
     plt.savefig(f'../figures/ww_genome_variation_{st}.pdf',transparent=True,bbox_inches='tight')

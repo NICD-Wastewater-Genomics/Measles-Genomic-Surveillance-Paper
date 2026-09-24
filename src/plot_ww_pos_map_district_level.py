@@ -11,15 +11,13 @@ import yaml
 import copy
 import numpy as np 
 
-import pandas as pd
 import matplotlib.pyplot as plt
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
 from matplotlib_scalebar.scalebar import ScaleBar
-from adjustText import adjust_text
-import matplotlib
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
+from pyproj import Transformer
 
 
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -27,10 +25,8 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['savefig.bbox'] = 'tight'
 matplotlib.rcParams['font.sans-serif'] = ['Arial']
 
-# cases = pd.read_csv('../assets/province_case_counts_2025.csv',index_col='Province')
 #counts by Province
 vl_df = pd.read_excel('../metadata/Wastewater metadata_20250218_SG.xlsx',sheet_name="Sample Testing Results")
-# vl_df = pd.read_csv('../metadata/wastewater_positivity.csv')
 vl_df.columns = vl_df.columns.str.strip()
 vl_df = vl_df[vl_df['Measles Result']!='Failed']
 
@@ -39,7 +35,6 @@ vl_province = vl_province.pivot_table(index=['Site Province'], columns='Measles 
 vl_province['Total'] = vl_province['Negative'] + vl_province['Positive'] 
 vl_province['Positivity'] = vl_province['Positive'] /vl_province['Total'] 
 
-# vl_df = vl_df[vl_df['Site Province']=='Gauteng']
 vl_district = pd.DataFrame(vl_df.groupby(['Site Province','District Name'])['Measles Result'].value_counts())
 vl_district = vl_district.pivot_table(index=['District Name'], columns='Measles Result',values='count',aggfunc='sum',fill_value=0)
 vl_district['Total'] = vl_district['Negative'] + vl_district['Positive'] 
@@ -76,21 +71,28 @@ district_lookup= {"City of Johannesburg":'Johannesburg MM',
 print('missing districts: ',sum(~vl_district.index.isin(district_lookup.values())))
 vl_district = vl_district.loc[vl_district.index.isin(district_lookup.values())]
 
+## get population info
+pops = pd.read_csv('../assets/PP_Population Group_27-10-2025.csv',index_col=0)
+pops.columns = pops.columns.str.strip()
+
+pops = pops[(~pops.index.str[0].str.isdigit()) & (~pops.index.str.contains('Local')) ]
+pops.index = [" ".join(pi.split(' ')[1:]).lower() for pi in pops.index]
+pops = pops['Total'].str.replace(',','').astype(float)
+
+# for country-level map, use equal area projection. 
 ### then add country map
 gdf = gpd.read_file("../assets/map_files/zaf_admbnda_adm1_sadb_ocha_20201109.shp").set_index("ADM1_EN")
 gdf_Gauteng = gdf[gdf.index=='Gauteng']
 gdf_others = gdf[gdf.index!='Gauteng']
 # convert map to projected WGS 84. 
-gdfG_r = gdf_Gauteng.to_crs("EPSG:2053").scale(xfact=-1,yfact=-1,origin=(0,0)).simplify(20)
-gdfO_r = gdf_others = gdf[gdf.index!='Gauteng'].to_crs("EPSG:2053").scale(xfact=-1,yfact=-1,origin=(0,0)).simplify(20)
+gdfG_r = gdf_Gauteng.to_crs("EPSG:9221").scale(xfact=1,yfact=1,origin=(0,0)).simplify(20)
+gdfO_r = gdf_others = gdf[gdf.index!='Gauteng'].to_crs("EPSG:9221").scale(xfact=1,yfact=1,origin=(0,0)).simplify(20)
 #fix northern cape spelling
 gdfO_r.loc['Northern Cape'] = gdfO_r.loc['Nothern Cape'] 
 gdfO_r = gdfO_r[gdfO_r.index !='Nothern Cape'] 
 
 
-# norm = matplotlib.colors.Normalize(vmin=0, vmax=vl_province['Positivity'].max()) 
-# create a scalarmappable from the colormap
-
+# create a scalar mappable from the colormap
 base = plt.cm.Blues
 colors = base(np.linspace(0.1, 1, 256))  # skip pale colors
 cmap = mcolors.LinearSegmentedColormap.from_list("Blues_trunc", colors)
@@ -103,8 +105,6 @@ gdfG_r.plot(facecolor=cmap(norm(vl_province.loc['Gauteng','Positivity'])),edgeco
 for province in gdfO_r.index:
     gdfO_r.loc[[province]].plot(facecolor=cmap(norm(vl_province.loc[province,'Positivity'])),edgecolor='silver',ax=ax)#,label='Sequencing Data')
 
-# ax.add_artist(ScaleBar(1,box_alpha=0,location='lower right'))
-# ax.legend(loc='upper left')
 plt.axis('off')
 plt.savefig('../figures/ww_positivity_map_provinces.pdf')
 plt.close('all')
@@ -112,13 +112,16 @@ plt.close('all')
 vl_province.to_csv('ww_positivity_provinces.csv')
 ### now district map, just for Gauteng. 
 
-# cases = pd.read_csv('../assets/gauteng_district_case_counts_2025.csv',index_col='District')
-
 gdf = gpd.read_file("../assets/map_files/zaf_admbnda_adm2_sadb_ocha_20201109.shp").set_index("ADM2_EN")
 
 ## wastewater data, and city locations
 
 meta_ww = pd.read_csv('../metadata/MeV Wastewater Sequences Final Metadata_05092025.csv',index_col='Sample Number')
+
+#cities
+dfCities = pd.read_csv('../assets/cities.tsv',sep='\t')
+dfCities['Latitude'] = dfCities['Coords'].apply(lambda x:x.split(',')[0])
+dfCities['Longitude'] = dfCities['Coords'].apply(lambda x:x.split(',')[1])
 
 #read in location of each wwtp
 df = pd.read_csv('../assets/All sampling sites_v5_300502024.csv',skipinitialspace=True)
@@ -132,14 +135,23 @@ df['Site'] = df['Site'].str.lower()
 df = df[df['Site'].isin(vl_df['Site Name'])]
 df = df[df.Type.str.contains('National')]
 
+#cities
+dfCities = pd.read_csv('../assets/cities.tsv',sep='\t')
+dfCities['Latitude'] = dfCities['Coords'].apply(lambda x:x.split(',')[0])
+dfCities['Longitude'] = dfCities['Coords'].apply(lambda x:x.split(',')[1])
+dfCities = dfCities.iloc[0:2]
+
+cities = gpd.GeoDataFrame(dfCities, geometry=gpd.points_from_xy(dfCities.Longitude, dfCities.Latitude), crs="EPSG:4326")
+cities_r = cities.to_crs("EPSG:9221").scale(xfact=1,yfact=1,origin=(0,0))
+# location of each wwtp in gauteng
 
 sites = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Longitude, df.Latitude), crs="EPSG:4326")
 seq_sites = sites#[sites['Seq']=="Yes"]
-seq_sites_r = seq_sites.to_crs("EPSG:2053").scale(xfact=-1,yfact=-1,origin=(0,0))
+seq_sites_r = seq_sites.to_crs("EPSG:9221").scale(xfact=1,yfact=1,origin=(0,0))
 #################
 
-# convert map to projected WGS 84. 
-gdf_r = gdf.to_crs("EPSG:2053").scale(xfact=-1,yfact=-1,origin=(0,0)).simplify(20)
+# for country-level map, use equal area projection. 
+gdf_r = gdf.to_crs("EPSG:9221").scale(xfact=1,yfact=1,origin=(0,0)).simplify(20)
 
 #counts by Province
 cases_2024 = pd.read_csv('../metadata/MEV_clinical_numbers_2024.csv',index_col='Districts')
@@ -181,11 +193,8 @@ district_lookup_flip_ = {value: key for key, value in district_lookup_.items()}
 vl_district_ = vl_district.copy()
 vl_district_.index = [district_lookup_flip_[ci] for ci in vl_district_.index]
 
-
 all_dat = pd.merge(cases,vl_district_,left_index=True,right_index=True)
 import seaborn as sns
-
-# generate Fig 1c
 fig, ax  = plt.subplots(figsize=(3.,4))
 ax.set_xlim([1,1000])
 ax.set_ylim([0,0.15])
@@ -208,22 +217,21 @@ print('R2: ',r2)
 print("P value:", p)
 
 
-
-## generate Fig 1b, now with sampling sites shown
 fig,ax = plt.subplots()
 
 gdfG_r.plot(facecolor='none',edgecolor='red',ax=ax,zorder=100000)#,label='Sequencing Data')
 for province in gdfO_r.index:
     gdfO_r.loc[[province]].plot(facecolor='none',edgecolor='black',ax=ax,zorder=9999)#,label='Sequencing Data')
 
+
 for district in gdf_r.index:
     if district in vl_district.index:
-        gdf_r.loc[[district]].plot(facecolor=plt.cm.Blues(norm(vl_district.loc[district,'Positivity'])),edgecolor='grey',ax=ax,linewidth=0.8,zorder=100)#,label='Sequencing Data')
+        gdf_r.loc[[district]].plot(facecolor=plt.cm.Blues(norm(vl_district.loc[district,'Positivity'])),edgecolor='grey',linewidth=0.8,ax=ax,zorder=100)#,label='Sequencing Data')
         print(district,vl_district.loc[district,'Positive'],vl_district.loc[district,'Total'],vl_district.loc[district,'Positivity'])
         vl_district = vl_district.drop(index=district)
     elif district in district_lookup.keys():
         district0 = district_lookup[district]
-        gdf_r.loc[[district]].plot(facecolor=plt.cm.Blues(norm(vl_district.loc[district0,'Positivity'])),edgecolor='grey',ax=ax,linewidth=0.8,zorder=100)#,label='Sequencing Data')
+        gdf_r.loc[[district]].plot(facecolor=plt.cm.Blues(norm(vl_district.loc[district0,'Positivity'])),edgecolor='grey',linewidth=0.8,ax=ax,zorder=100)#,label='Sequencing Data')
         print(district,vl_district.loc[district0,'Positive'],vl_district.loc[district0,'Total'],vl_district.loc[district0,'Positivity'])
         vl_district = vl_district.drop(index=district0)
     else:
@@ -231,35 +239,81 @@ for district in gdf_r.index:
         print(district)
 seq_sites_r.plot(ax=ax,edgecolor='black',facecolor='white',markersize=5,zorder=10000000)
 
+def latlon_graticule(ax, crs, dlon=1.0, dlat=1.0, n=400,
+                     flip=True, line_kw=None, fmt=None):
+    """lat/lon graticule + edge labels for an axis in a projected CRS.
+    flip=True matches .scale(xfact=-1, yfact=-1, origin=(0,0)) applied to the data."""
+    line_kw = {'color': 'gray', 'lw': 0.4, 'ls': ':', 'zorder': 0, **(line_kw or {})}
+    fmt = fmt or (lambda v, k: f"{abs(v):g}°" +
+                  (('E' if v >= 0 else 'W') if k == 'lon' else ('N' if v >= 0 else 'S')))
+
+    s = -1.0 if flip else 1.0
+    _f = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
+    _i = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    fwd = lambda lo, la: tuple(s * np.asarray(c) for c in _f.transform(lo, la))
+    inv = lambda x, y: _i.transform(s * np.asarray(x), s * np.asarray(y))
+
+    x0, x1 = ax.get_xlim(); y0, y1 = ax.get_ylim()
+    lons, lats = inv([x0, x1, x0, x1], [y0, y0, y1, y1])
+    lo0, lo1 = min(lons), max(lons); la0, la1 = min(lats), max(lats)
+
+    lon_t = np.arange(np.ceil(lo0/dlon)*dlon, lo1 + 1e-9, dlon)
+    lat_t = np.arange(np.ceil(la0/dlat)*dlat, la1 + 1e-9, dlat)
+    lat_s = np.linspace(la0 - dlat, la1 + dlat, n)
+    lon_s = np.linspace(lo0 - dlon, lo1 + dlon, n)
+
+    xt, xl, yt, yl = [], [], [], []
+    for lon in lon_t:                                    # meridians -> bottom ticks
+        X, Y = fwd(np.full(n, lon), lat_s)
+        ax.plot(X, Y, **line_kw)
+        if Y.min() <= y0 <= Y.max():
+            o = np.argsort(Y)
+            xt.append(np.interp(y0, Y[o], X[o])); xl.append(fmt(lon, 'lon'))
+    for lat in lat_t:                                    # parallels -> left ticks
+        X, Y = fwd(lon_s, np.full(n, lat))
+        ax.plot(X, Y, **line_kw)
+        if X.min() <= x0 <= X.max():
+            o = np.argsort(X)
+            yt.append(np.interp(x0, X[o], Y[o])); yl.append(fmt(lat, 'lat'))
+
+    ax.set_xticks(xt); ax.set_xticklabels(xl)
+    ax.set_yticks(yt); ax.set_yticklabels(yl)
+    ax.set_xlim(x0, x1); ax.set_ylim(y0, y1)
+
+latlon_graticule(ax, gdf_r.crs, dlon=4, dlat=4,flip=False)
+
 ax.add_artist(ScaleBar(1,box_alpha=0,location='lower right'))
-# ax.legend(loc='upper left')
-plt.axis('off')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
 plt.savefig('../figures/ww_positivity_map_district_level.pdf')
 plt.close('all')
 
 ###
 
 gdf= gdf[gdf['ADM1_EN']=='Gauteng']
-gdf_r = gdf.to_crs("EPSG:2053").scale(xfact=-1,yfact=-1,origin=(0,0)).simplify(20)
+gdf_r = gdf.to_crs("EPSG:9221").scale(xfact=1,yfact=1,origin=(0,0)).simplify(20)
 
 df = df[df.Province=='Gauteng']
 df = df[df.Type.str.contains('National')]
 
 sites = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Longitude, df.Latitude), crs="EPSG:4326")
 seq_sites = sites#[sites['Seq']=="Yes"]
-seq_sites_r = seq_sites.to_crs("EPSG:2053").scale(xfact=-1,yfact=-1,origin=(0,0))
+seq_sites_r = seq_sites.to_crs("EPSG:9221").scale(xfact=1,yfact=1,origin=(0,0))
 
-## generate ED Fig 3a
+
+# convert map to projected WGS 84. 
+# gdf_r = gdf.to_crs("EPSG:9221").scale(xfact=-1,yfact=-1,origin=(0,0)).simplify(20)
 
 fig,ax = plt.subplots()
 gdfG_r.plot(facecolor='none',edgecolor='red',ax=ax,zorder=100000)#,label='Sequencing Data')
 for district in ['City of Johannesburg','City of Tshwane','Ekurhuleni','Sedibeng','West Rand']:
-    # district0 = district_lookup[district]
     if district.lower() in vl_district_.index:
         gdf_r.loc[[district]].plot(facecolor=plt.cm.Blues(norm(vl_district_.loc[district.lower(),'Positivity'])),edgecolor='silver',ax=ax)#,label='Sequencing Data')
     else:
         gdf_r.loc[[district]].plot(facecolor='none',edgecolor='silver',ax=ax)#,label='Sequencing Data')
 seq_sites_r.plot(ax=ax,edgecolor='black',facecolor='white',markersize=20)
+
 
 ax.add_artist(ScaleBar(1,box_alpha=0,location='lower right'))
 # ax.legend(loc='upper left')
@@ -267,7 +321,7 @@ plt.axis('off')
 plt.savefig('../figures/ww_positivity_map_gauteng.pdf')
 plt.close('all')
 
-## generate ED Figs 3b-d
+
 fig, ax = plt.subplots(figsize=(0.5, 3), layout='constrained')
 
 # Colorbar
